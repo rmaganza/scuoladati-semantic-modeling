@@ -406,6 +406,24 @@ uv run jupyter lab notebooks/01_introduzione.ipynb
 | `dbt run -m <modello>` | Esegue un modello specifico |
 | `dbt test` | Esegue i test |
 | `dbt docs generate` | Genera documentazione |
+| `dbt docs serve` | Avvia server docs local |
+
+## Documentazione dbt
+
+La documentazione dbt è già generata e disponibile nella cartella `docs/`. Puoi visualizzarla in due modi:
+
+### Opzione 1: Server locale (consigliata, interattiva)
+
+```bash
+cd adventureworks
+dbt docs serve
+```
+
+Questo avvia un server locale su http://localhost:8080 con la documentazione interattiva.
+
+### Opzione 2: Statico (senza server)
+
+Apri direttamente `docs/index.html` nel browser. Nota: alcune funzionalità richiedono un server locale.
 
 ## Dati
 

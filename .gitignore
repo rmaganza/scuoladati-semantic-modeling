@@ -33,7 +33,6 @@ venv/
 # dbt
 target/
 dbt_packages/
-logs/
 
 # Database
 *.duckdb
