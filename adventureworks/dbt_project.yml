@@ -1,0 +1,16 @@
+name: adventureworks
+version: '1.0.0'
+
+profile: adventureworks
+
+config-version: 2
+
+vars:
+  source_schema: main
+
+models:
+  adventureworks:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table

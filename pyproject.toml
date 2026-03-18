@@ -1,0 +1,24 @@
+[project]
+name = "adventureworks-dbt-course"
+version = "1.0.0"
+description = "Corso di Modellazione Semantica con dbt - Esempio AdventureWorks"
+authors = [{name = "Riccardo Maganza", email = "riccardo@agentic-data.com"}]
+requires-python = ">=3.10"
+dependencies = [
+    "duckdb",
+    "dbt-duckdb",
+    "jupyter",
+    "matplotlib",
+    "pandas",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[tool.uv]
+dev-dependencies = []
+
+[tool.jupyter]
+ kernelspec = "python3"

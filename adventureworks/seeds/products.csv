@@ -1,0 +1,6 @@
+product_id,name,category_id,subcategory_id,price
+1,Road Bike,1,1,500
+2,Mountain Bike,1,2,600
+3,Helmet,2,4,50
+4,Time Trial Bike,1,3,2500
+5,Bike Lock,2,5,30

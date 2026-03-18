@@ -1,0 +1,16 @@
+version: 2
+
+seeds:
+  - name: customers
+  - name: orders
+  - name: order_lines
+  - name: products
+  - name: categories
+
+models:
+  - name: fct_orders
+    description: "Fact table for orders - only shipped orders (status=5)"
+  - name: fct_products
+    description: "Fact table for products"
+  - name: fct_customers
+    description: "Fact table for customers"

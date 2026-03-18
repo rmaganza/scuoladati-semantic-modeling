@@ -1,0 +1,6 @@
+customer_id,first_name,last_name,email,city
+101,John,Doe,john@example.com,Milan
+102,Jane,Smith,jane@example.com,Rome
+103,Bob,Johnson,bob@example.com,Naples
+104,Alice,Williams,alice@example.com,Milan
+105,Charlie,Brown,charlie@example.com,Rome
