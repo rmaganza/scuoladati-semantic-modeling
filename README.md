@@ -11,6 +11,8 @@ Repository di accompagnamento per la lezione sulla **modellazione semantica** us
 - **Python 3.10–3.13** (dbt non supporta ancora Python 3.14)
 - **uv** — gestore pacchetti Python ([installazione](https://docs.astral.sh/uv/getting-started/installation/))
 
+**Nota**: Non serve installare dbt separatamente. È incluso nelle dipendenze del progetto (`dbt-duckdb` → `dbt-core`). Dopo `uv sync` puoi usare `uv run dbt` (o `dbt` se attivi l’ambiente virtuale).
+
 Per installare uv (se non presente):
 
 ```bash
