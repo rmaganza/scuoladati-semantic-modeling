@@ -33,10 +33,14 @@ venv/
 # dbt
 target/
 dbt_packages/
+**/logs/
 
 # Database
 *.duckdb
 *.duckdb.wal
+
+# User/session config (Cursor, Trunk, etc.)
+.user.yml
 
 # OS
 .DS_Store

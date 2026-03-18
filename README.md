@@ -8,28 +8,49 @@ Repository di accompagnamento per la lezione sulla **modellazione semantica** us
 
 ## Prerequisiti
 
-- Python 3.10+
-- [uv](https://github.com/astral-sh/uv) (gestore pacchetti)
+- **Python 3.10–3.13** (dbt non supporta ancora Python 3.14)
+- **uv** — gestore pacchetti Python ([installazione](https://docs.astral.sh/uv/getting-started/installation/))
 
-## Setup
-
-### 1. Installa le dipendenze
+Per installare uv (se non presente):
 
 ```bash
-# Entra nella directory del progetto
-cd adventureworks-dbt-course
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Installa le dipendenze con uv
+# oppure con pip
+pip install uv
+```
+
+## Setup da zero
+
+Segui questi passaggi in ordine per configurare il progetto da zero.
+
+### 1. Clona il repository
+
+```bash
+git clone <url-del-repository>
+cd scuoladati-semantic-modeling   # oppure il nome della cartella creata
+```
+
+_(Sostituisci `<url-del-repository>` con l’URL effettivo del repo. Se hai scaricato lo ZIP, decomprimi e entra nella cartella.)_
+
+### 2. Installa le dipendenze
+
+```bash
 uv sync
 ```
 
-### 2. Configura il profilo dbt
+Questo crea un ambiente virtuale e installa DuckDB, dbt-duckdb, Jupyter e le altre dipendenze.
 
-Crea il file di configurazione del profilo:
+### 3. Configura dbt e crea il database
+
+**Opzione A — Profilo globale (consigliata)**
 
 ```bash
+cd adventureworks
+mkdir -p data
 mkdir -p ~/.dbt
-cat > ~/.dbt/profiles.yml << 'EOF'
+cat > ~/.dbt/profiles.yml << EOF
 adventureworks:
   target: dev
   outputs:
@@ -40,40 +61,68 @@ adventureworks:
 EOF
 ```
 
-### 3. Inizializza dbt
+_(Su Windows, il comando `cat` potrebbe non funzionare. Crea manualmente `%USERPROFILE%\.dbt\profiles.yml` con il contenuto sopra, sostituendo `$(pwd)` con il path assoluto della cartella `adventureworks`, es. `C:\path\to\progetto\adventureworks`.)_
 
-```bash
-dbt init adventureworks
-```
+**Opzione B — Profilo nel progetto**
 
-Modifica `adventureworks/dbt_project.yml` aggiungendo:
-
-```yaml
-profile: adventureworks
-```
-
-### 4. Carica i dati e rebuild
+Il repository include un `profiles.yml` nella root. Dalla cartella `adventureworks/`:
 
 ```bash
 cd adventureworks
+mkdir -p data
+```
+
+Poi usa `DBT_PROFILES_DIR=..` quando lanci dbt (vedi step 4).
+
+### 4. Carica i dati e costruisci i modelli
+
+Dalla cartella `adventureworks/`:
+
+```bash
+# Con profilo globale (Opzione A)
 dbt seed
 dbt run
+dbt test
 ```
+
+Se usi l’Opzione B:
+
+```bash
+DBT_PROFILES_DIR=.. dbt seed
+DBT_PROFILES_DIR=.. dbt run
+DBT_PROFILES_DIR=.. dbt test
+```
+
+### 5. Verifica che tutto funzioni
+
+```bash
+# Torna alla root del progetto
+cd ..
+
+# Avvia il notebook
+uv run jupyter lab notebooks/01_introduzione.ipynb
+```
+
+Esegui le celle del notebook: dovresti vedere le tabelle e i risultati delle query. Se il notebook non trova il database, controlla di aver eseguito `dbt seed` e `dbt run` dallo step 4.
 
 ## Struttura del Repository
 
 ```
-adventureworks-dbt-course/
+scuoladati-semantic-modeling/
 ├── README.md                 # Questo file
 ├── pyproject.toml            # Dipendenze uv
+├── profiles.yml              # Profilo dbt (opzionale, alternativa a ~/.dbt/)
 ├── notebooks/
 │   └── 01_introduzione.ipynb # Notebook interattivo
 ├── adventureworks/           # Progetto dbt
 │   ├── dbt_project.yml
+│   ├── data/                 # Database DuckDB (creato da dbt)
 │   ├── seeds/                # Dati CSV
 │   └── models/               # Modelli dbt
-└── data/                     # Database DuckDB
+└── docs/                     # Documentazione dbt generata
 ```
+
+**Nota**: Il database DuckDB viene creato in `adventureworks/data/adventureworks.duckdb` quando esegui `dbt seed` o `dbt run`. Il notebook si connette a questo path quando viene eseguito dalla root del progetto.
 
 ## Contenuto
 
@@ -81,18 +130,18 @@ adventureworks-dbt-course/
 
 Il notebook `notebooks/01_introduzione.ipynb` contiene:
 
-1. **Esplorazione dei dati grezzi** — Query dirette sui CSV
-2. **Dimostrazione del fanout** — Vediamo cosa succede senza modellazione
-3. **Esecuzione dei modelli dbt** — Build e risultati
-4. **Confronto before/after** — Query giuste vs sbagliate
+1. **Esplorazione dei dati grezzi** — Query dirette sulle tabelle caricate da dbt
+2. **Dimostrazione del fanout** — Cosa succede senza modellazione corretta
+3. **I modelli dbt in azione** — Build e risultati delle fact table
+4. **Confronto before/after** — Query sbagliate vs corrette
 
 ### Progetto dbt
 
 Il progetto contiene:
 
 - **Seeds**: 5 file CSV con dati AdventureWorks semplificati
-- **Staging models**: 5 viste per pulizia/normalizzazione
-- **Mart models**: 3 fact tables per analisi
+- **Staging models**: 5 viste per pulizia e normalizzazione
+- **Mart models**: 3 fact table per analisi
 
 ---
 
@@ -104,13 +153,13 @@ Questa sezione spiega **cosa fa ogni modello**, **perché è stato creato così*
 
 I seed sono file CSV caricati direttamente nel database. Rappresentano i **dati sorgente**, senza alcuna trasformazione.
 
-| File | Contenuto | Note |
-|------|-----------|------|
-| `seeds/customers.csv` | 5 clienti | Include città per segmentazione |
-| `seeds/orders.csv` | 10 ordini | Stati: 1=pending, 5=shipped, 6=cancelled |
-| `seeds/order_lines.csv` | 13 righe | Include sconti (gross vs net) |
-| `seeds/products.csv` | 5 prodotti | Biciclette e accessori |
-| `seeds/categories.csv` | 5 categorie | Category + subcategory |
+| File                    | Contenuto   | Note                                                   |
+| ----------------------- | ----------- | ------------------------------------------------------ |
+| `seeds/customers.csv`   | 5 clienti   | Include città per segmentazione                        |
+| `seeds/orders.csv`      | 10 ordini   | Stati: 1=pending, 2=processing, 5=shipped, 6=cancelled |
+| `seeds/order_lines.csv` | 19 righe    | Include `discount_pct` per sconto per riga             |
+| `seeds/products.csv`    | 5 prodotti  | Biciclette e accessori                                 |
+| `seeds/categories.csv`  | 5 categorie | Category + subcategory                                 |
 
 **Perché esistono**: Senza dati, non c'è modello. I seeds simulano un database sorgente.
 
@@ -131,7 +180,7 @@ I modelli staging sono il **primo livello di trasformazione**. Sono viste (`view
 ```sql
 {{ config(materialized='view') }}
 
-SELECT 
+SELECT
     customer_id,
     first_name,
     last_name,
@@ -142,10 +191,7 @@ FROM {{ ref('customers') }}
 
 **Cosa fa**: Semplice pass-through. Rinomina/seleziona colonne.
 
-**Perché esiste**: 
-- Definisce il **contratto** del livello customer
-- Se domani cambi il nome della colonna `first_name` nel CSV, modifichi solo questo file
-- Tutti i modelli a valle continuano a funzionare
+**Perché esiste**: Definisce il **contratto** del livello customer. Se domani cambi il nome della colonna `first_name` nel CSV, modifichi solo questo file e tutti i modelli a valle continuano a funzionare.
 
 ---
 
@@ -154,7 +200,7 @@ FROM {{ ref('customers') }}
 ```sql
 {{ config(materialized='view') }}
 
-SELECT 
+SELECT
     order_id,
     customer_id,
     order_date,
@@ -165,9 +211,7 @@ FROM {{ ref('orders') }}
 
 **Cosa fa**: Pass-through con selezione campi.
 
-**Perché esiste**: 
-- Separa il livello dati grezzi da quello business
-- Se aggiungi campi al CSV, questo modello li espone o nasconde
+**Perché esiste**: Separa il livello dati grezzi da quello business. Se aggiungi campi al CSV, questo modello li espone o nasconde.
 
 ---
 
@@ -176,7 +220,7 @@ FROM {{ ref('orders') }}
 ```sql
 {{ config(materialized='view') }}
 
-SELECT 
+SELECT
     product_id,
     name,
     category_id,
@@ -196,15 +240,15 @@ FROM {{ ref('products') }}
 ```sql
 {{ config(materialized='view') }}
 
-SELECT 
-    category_id,
+SELECT
     subcategory_id,
-    name AS category_name,
-    subcategory_name
+    category_id,
+    subcategory_name,
+    name AS category_name
 FROM {{ ref('categories') }}
 ```
 
-**Cosa fa**: Rinomina `name` in `category_name` per chiarezza.
+**Cosa fa**: Rinomina `name` in `category_name` per chiarezza. Espone `subcategory_name` per analisi a livello sottocategoria.
 
 **Perché esiste**: Evita ambiguità quando si fa JOIN con altre tabelle che hanno anche una colonna `name`.
 
@@ -215,31 +259,34 @@ FROM {{ ref('categories') }}
 ```sql
 {{ config(materialized='view') }}
 
-SELECT 
+SELECT
     ol.order_line_id,
     ol.order_id,
     ol.product_id,
     ol.quantity,
     ol.unit_price,
-    ol.line_total AS gross_total,      -- ⚠️ Rinominato!
-    ol.line_total * 0.9 AS net_total,  -- ⚠️ Calcolato! (10% sconto)
+    ol.line_total,
+    ol.discount_pct,
+    ol.line_total * (1 - ol.discount_pct) AS net_revenue,
     p.name AS product_name,
     p.category_id,
     p.subcategory_id,
-    pc.category_name,
+    pc.name AS category_name,
     pc.subcategory_name
 FROM {{ ref('order_lines') }} ol
-LEFT JOIN {{ ref('stg_products') }} p ON ol.product_id = p.product_id
-LEFT JOIN {{ ref('stg_categories') }} pc ON p.subcategory_id = pc.subcategory_id
+LEFT JOIN {{ ref('products') }} p ON ol.product_id = p.product_id
+LEFT JOIN {{ ref('categories') }} pc ON p.subcategory_id = pc.subcategory_id
 ```
 
-**Cosa fa**: 
-- JOIN con products e categories per arricchimento
-- Calcola `net_total` = `gross_total * 0.9` (simula uno sconto del 10%)
+**Cosa fa**:
 
-**Perché è importante**: 
+- JOIN con products e categories per arricchimento
+- Calcola `net_revenue` = `line_total * (1 - discount_pct)` — ogni riga ha il proprio sconto
+
+**Perché è importante**:
+
 - Qui vediamo il **pattern fondamentale** dello staging: arricchimento con JOIN
-- Il calcolo di `net_total` dimostra come si aggiunge **business logic** al livello più basso
+- Il calcolo di `net_revenue` dimostra come si aggiunge **business logic** al livello più basso
 - Questo campo sarà usato dai mart per metriche accurate
 
 ---
@@ -255,37 +302,39 @@ I modelli mart sono il cuore della **modellazione semantica**. Sono tabelle (`ta
 ```sql
 {{ config(materialized='table') }}
 
-SELECT 
+SELECT
     o.order_id,
     o.order_date,
     o.customer_id,
     c.first_name || ' ' || c.last_name AS customer_name,
-    c.city AS customer_city,
-    o.total AS order_header_total,    -- ⚠️ Campo grezzo
+    c.city,
+    o.status,
+    o.total AS order_total,
     COUNT(ol.order_line_id) AS line_count,
     SUM(ol.quantity) AS total_items,
-    SUM(ol.gross_total) AS gross_revenue,  -- ⚠️ Da order_lines!
-    SUM(ol.net_total) AS net_revenue        -- ⚠️ Con sconto!
+    COALESCE(SUM(ol.line_total), 0) AS gross_revenue,
+    COALESCE(SUM(ol.net_revenue), 0) AS net_revenue
 FROM {{ ref('stg_orders') }} o
 LEFT JOIN {{ ref('stg_order_lines') }} ol ON o.order_id = ol.order_id
 LEFT JOIN {{ ref('stg_customers') }} c ON o.customer_id = c.customer_id
-GROUP BY o.order_id, o.order_date, o.customer_id, 
-         c.first_name, c.last_name, c.city, o.total
+WHERE o.status = 5  -- Solo ordini spediti
+GROUP BY o.order_id, o.order_date, o.customer_id, c.first_name, c.last_name, c.city, o.status, o.total
 ```
 
 **Cosa calcola**:
+
 - `gross_revenue`: somma dei totali lordi delle righe
-- `net_revenue`: somma dei totali netti (con sconto)
+- `net_revenue`: somma dei totali netti (con sconti per riga)
 - `line_count`: numero di righe per ordine
 
-**Perché `order_header_total` E `gross_revenue`?**
+**Perché `order_total` E `gross_revenue`?**
 
-| Campo | Sorgente | Uso |
-|-------|----------|-----|
-| `order_header_total` | `orders.total` | Per confronto/reconciliazione |
-| `gross_revenue` | `SUM(order_lines.line_total)` | Per analisi accurate |
+| Campo           | Sorgente                      | Uso                           |
+| --------------- | ----------------------------- | ----------------------------- |
+| `order_total`   | `orders.total`                | Per confronto/reconciliazione |
+| `gross_revenue` | `SUM(order_lines.line_total)` | Per analisi accurate          |
 
-**Problema che risolve**: Il campo `orders.total` può essere obsoleto o impreciso. Calcolando da `order_lines` otteniamo un valore **riconciliabile** — la somma delle righe deve uguagliare il totale (a meno di arrotondamenti).
+**Problema che risolve**: Il campo `orders.total` può essere obsoleto o impreciso. Calcolando da `order_lines` otteniamo un valore **riconciliabile**.
 
 ---
 
@@ -294,44 +343,35 @@ GROUP BY o.order_id, o.order_date, o.customer_id,
 ```sql
 {{ config(materialized='table') }}
 
-SELECT 
+SELECT
     p.product_id,
     p.name AS product_name,
     p.category_id,
     p.subcategory_id,
     pc.category_name,
     pc.subcategory_name,
-    COUNT(DISTINCT ol.order_id) AS orders_with_product,  -- ⚠️ DISTINCT!
+    COUNT(DISTINCT ol.order_id) AS orders_with_product,
     COALESCE(SUM(ol.quantity), 0) AS units_sold,
-    COALESCE(SUM(ol.gross_total), 0) AS gross_revenue,
-    COALESCE(SUM(ol.net_total), 0) AS net_revenue
+    COALESCE(SUM(ol.line_total), 0) AS gross_revenue,
+    COALESCE(SUM(ol.net_revenue), 0) AS net_revenue
 FROM {{ ref('stg_products') }} p
 LEFT JOIN {{ ref('stg_order_lines') }} ol ON p.product_id = ol.product_id
 LEFT JOIN {{ ref('stg_categories') }} pc ON p.subcategory_id = pc.subcategory_id
-GROUP BY p.product_id, p.name, p.category_id, p.subcategory_id,
-         pc.category_name, pc.subcategory_name
+GROUP BY p.product_id, p.name, p.category_id, p.subcategory_id, pc.category_name, pc.subcategory_name
 ```
 
 **Cosa calcola**:
-- `orders_with_product`: quanti ordini contengono questo prodotto
-- `units_sold`: somma delle quantità
-- `gross_revenue` / `net_revenue`: revenue con/senza sconto
 
-**Il problema del FANOUT spiegato** (il concetto più importante!):
+- `orders_with_product`: quanti ordini contengono questo prodotto (con DISTINCT per evitare fanout)
+- `units_sold`: somma delle quantità
+- `gross_revenue` / `net_revenue`: revenue con/senza sconti
+
+**Il problema del FANOUT** (concetto chiave):
 
 ```
 Senza DISTINCT:  Ordine 1 ha 3 prodotti diversi → conta 3 ordini ❌
-Con DISTINCT:     Ordine 1 ha 3 prodotti diversi → conta 1 ordine ✅
+Con DISTINCT:    Ordine 1 ha 3 prodotti diversi → conta 1 ordine ✅
 ```
-
-Se un cliente compra 3 prodotti in un ordine, e noi facciamo:
-```sql
-SELECT product_id, COUNT(order_id) FROM order_lines GROUP BY product_id
-```
-
-Il risultato sarà **sballato** — ogni ordine viene contato più volte.
-
-**Soluzione nel modello**: `COUNT(DISTINCT order_id)` — il modello fa questo calcolo **una volta**, e tutti lo usano correttamente.
 
 ---
 
@@ -340,54 +380,107 @@ Il risultato sarà **sballato** — ogni ordine viene contato più volte.
 ```sql
 {{ config(materialized='table') }}
 
-SELECT 
+SELECT
     c.customer_id,
     c.first_name,
     c.last_name,
     c.email,
     c.city,
-    COUNT(DISTINCT o.order_id) AS order_count,           -- ⚠️ DISTINCT!
-    COALESCE(SUM(o.total), 0) AS lifetime_gross_value,   -- Da header
-    COALESCE(SUM(ol.net_total), 0) AS lifetime_net_value -- Da righe
+    COUNT(DISTINCT o.order_id) AS order_count,
+    COALESCE(SUM(o.total), 0) AS lifetime_value,
+    COALESCE(SUM(ol.net_revenue), 0) AS lifetime_net_revenue
 FROM {{ ref('stg_customers') }} c
-LEFT JOIN {{ ref('stg_orders') }} o ON c.customer_id = o.customer_id
+LEFT JOIN {{ ref('stg_orders') }} o ON c.customer_id = o.customer_id AND o.status = 5
 LEFT JOIN {{ ref('stg_order_lines') }} ol ON o.order_id = ol.order_id
 GROUP BY c.customer_id, c.first_name, c.last_name, c.email, c.city
 ```
 
 **Cosa calcola**:
-- `order_count`: numero di ordini unici per cliente
-- `lifetime_gross_value`: somma dei totali header
-- `lifetime_net_value`: somma dei totali netti (più accurato)
 
-**Perché due lifetime value?**
+- `order_count`: numero di ordini unici per cliente (solo shipped)
+- `lifetime_value`: somma dei totali header (per confronto)
+- `lifetime_net_revenue`: somma dei totali netti dalle righe (più accurato)
 
-| Metrica | Calcolo | Affidabilità |
-|---------|---------|--------------|
-| `lifetime_gross_value` | `SUM(orders.total)` | Bassa — campo denormalizzato |
-| `lifetime_net_value` | `SUM(order_lines.net_total)` | Alta — calcolato |
+**Perché due metriche di valore?**
 
-Il modello espone entrambi per permettere **reconciliazione**: gross - net dovrebbe uguagliare il totale sconti.
+| Metrica                | Calcolo                        | Affidabilità                 |
+| ---------------------- | ------------------------------ | ---------------------------- |
+| `lifetime_value`       | `SUM(orders.total)`            | Bassa — campo denormalizzato |
+| `lifetime_net_revenue` | `SUM(order_lines.net_revenue)` | Alta — calcolato con sconti  |
+
+Il modello espone entrambi per permettere **reconciliazione**.
 
 ---
 
 ## Prima vs Dopo: Riepilogo
 
-| Aspetto | Prima (SQL Diretto) | Dopo (Modello Semantico) |
-|---------|---------------------|-------------------------|
-| **Query** | Complessa, ripetuta | `SELECT * FROM fct_xxx` |
-| **Logica** | Duplicata in ogni query | Centralizzata nel modello |
-| **Errori** | Fanout, DISTINCT dimenticati | Corretto by design |
-| **Manutenzione** | Difficile | Cambi in un punto |
-| **Testing** | Difficile | Test sul modello |
+| Aspetto          | Prima (SQL Diretto)          | Dopo (Modello Semantico)      |
+| ---------------- | ---------------------------- | ----------------------------- |
+| **Query**        | Complessa, ripetuta          | `SELECT * FROM fct_xxx`       |
+| **Logica**       | Duplicata in ogni query      | Centralizzata nel modello     |
+| **Errori**       | Fanout, DISTINCT dimenticati | Corretto by design            |
+| **Manutenzione** | Difficile                    | Cambi in un punto             |
+| **Testing**      | Difficile                    | Test sul modello (vedi sotto) |
+
+---
+
+## Test dbt: Cosa sono e a cosa servono
+
+I **test dbt** sono controlli automatici che verificano la qualità e l'integrità dei dati nei tuoi modelli. A differenza dei test unitari nel codice, i test dbt eseguono query SQL sul database e falliscono se i dati non rispettano le regole definite.
+
+### Perché sono utili
+
+- **Catturare errori prima che arrivino agli utenti**: Se un modello produce righe duplicate, valori nulli dove non dovrebbero esserci, o relazioni rotte, il test fallisce e ti avvisa.
+- **Documentare le aspettative**: Un test che verifica "customer_id non nullo" documenta implicitamente che quel campo è obbligatorio.
+- **Rendere i modelli affidabili**: Con test che passano, puoi fidarti che le fact table rispettano i contratti definiti.
+
+### Tipi di test
+
+1. **Test generici** (schema tests): Si definiscono nel file `schema.yml` accanto al modello. Esempi:
+   - `unique`: nessun valore duplicato nella colonna
+   - `not_null`: nessun valore NULL
+   - `accepted_values`: la colonna contiene solo valori da una lista (es. status in [1,2,5,6])
+   - `relationships`: integrità referenziale (es. `customer_id` esiste in `customers`)
+
+2. **Test singolari** (custom): Query SQL personalizzate in file `.sql` che restituiscono le righe che _violano_ la regola. Se la query restituisce 0 righe, il test passa.
+
+### Esempio
+
+```yaml
+# In schema.yml
+models:
+  - name: fct_customers
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+```
+
+Eseguendo `dbt test`, dbt lancia le query corrispondenti. Se un test fallisce, vedrai quali righe violano la regola.
 
 ---
 
 ## Esercizi Proposti
 
-1. **Aggiungi un nuovo campo**: Aggiungi `discount_pct` ai seed e calcola `net_total` correttamente
-2. **Nuovo mart**: Crea `fct_daily_sales` con revenue per giorno
-3. **Filtri**: Aggiungi solo ordini shipped ai mart (status = 5)
+### Esercizi base (con i modelli esistenti)
+
+1. **Prodotti per categoria**: Quanti prodotti unici sono stati venduti per categoria? Usa `fct_products` e raggruppa per `category_name`.
+2. **Revenue per città**: Quale città ha generato più revenue? Usa `fct_customers` e raggruppa per `city`.
+3. **Top clienti**: Chi sono i 3 clienti con il maggior `lifetime_net_revenue`? Query semplice su `fct_customers`.
+4. **Prodotti più venduti**: Quali sono i 3 prodotti con più `units_sold`? Usa `fct_products`.
+
+### Esercizi intermedi (query su tabelle raw)
+
+5. **Sconto medio per prodotto**: Qual è il prodotto con lo sconto medio più alto? Usa `order_lines` e calcola `AVG(discount_pct)` per `product_id`.
+6. **Reconciliazione**: Confronta `order_total` e `gross_revenue` in `fct_orders`. Ci sono ordini dove differiscono? Perché?
+7. **Ordini per stato**: Quanti ordini ci sono per ogni `status`? Usa la tabella `orders` direttamente.
+
+### Esercizi avanzati (modifiche al progetto dbt)
+
+8. **Nuovo mart giornaliero**: Crea `fct_daily_sales` con revenue (gross e net) aggregata per giorno. Parti da `stg_order_lines` e `stg_orders`.
+9. **Filtro per data**: Aggiungi un parametro per filtrare gli ordini per anno (es. solo 2024). Usa le [variables dbt](https://docs.getdbt.com/docs/build/jinja-macros#variables).
+10. **Test di integrità**: Aggiungi un test dbt che verifica che `gross_revenue` in `fct_orders` sia uguale a `order_total` (a meno di arrotondamenti).
 
 ## Guida Rapida
 
@@ -397,16 +490,20 @@ Il modello espone entrambi per permettere **reconciliazione**: gross - net dovre
 uv run jupyter lab notebooks/01_introduzione.ipynb
 ```
 
+**Nota**: Esegui il notebook dalla root del progetto. Il notebook si connette a `adventureworks/data/adventureworks.duckdb`. Esegui prima `dbt seed` e `dbt run` dalla cartella `adventureworks/`.
+
 ### Comandi dbt
 
-| Comando | Descrizione |
-|---------|-------------|
-| `dbt seed` | Carica i CSV nel database |
-| `dbt run` | Esegue tutti i modelli |
+| Comando                | Descrizione                 |
+| ---------------------- | --------------------------- |
+| `dbt seed`             | Carica i CSV nel database   |
+| `dbt run`              | Esegue tutti i modelli      |
 | `dbt run -m <modello>` | Esegue un modello specifico |
-| `dbt test` | Esegue i test |
-| `dbt docs generate` | Genera documentazione |
-| `dbt docs serve` | Avvia server docs local |
+| `dbt test`             | Esegue i test               |
+| `dbt docs generate`    | Genera documentazione       |
+| `dbt docs serve`       | Avvia server docs locale    |
+
+**Ricorda**: Esegui i comandi dbt dalla cartella `adventureworks/`.
 
 ## Documentazione dbt
 
@@ -430,8 +527,8 @@ Apri direttamente `docs/index.html` nel browser. Nota: alcune funzionalità rich
 I dati rappresentano uno schema AdventureWorks semplificato:
 
 - **5 clienti** (con città)
-- **10 ordini** (vari stati: pending, shipped, cancelled)
-- **13 righe ordine** (con sconti!)
+- **10 ordini** (vari stati: pending, processing, shipped, cancelled)
+- **19 righe ordine** (con sconti per riga in `discount_pct`)
 - **5 prodotti** (biciclette e accessori)
 - **5 categorie/sottocategorie**
 
@@ -461,16 +558,12 @@ customers ────── orders ────── order_lines ────�
 
 ### 3. Filtri Mancanti
 
-**Problema**: Includere ordini cancellati o pending.
+**Problema**: Includere ordini cancellati o pending nelle metriche.
 
-**Soluzione**: Filtra sempre per `status = 'shipped'`.
+**Soluzione**: Filtra sempre per `status = 5` (shipped). Il campo `status` è numerico, non testuale.
 
 ## Risorse
 
 - [dbt Docs](https://docs.getdbt.com/)
 - [dbt DuckDB Adapter](https://github.com/duckdb/dbt-duckdb)
 - [AdventureWorks Schema](https://learn.microsoft.com/en-us/sql/samples/adventureworks-install-configure)
-
-## Licenza
-
-MIT License

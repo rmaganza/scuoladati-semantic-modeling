@@ -9,8 +9,31 @@ seeds:
 
 models:
   - name: fct_orders
-    description: "Fact table for orders - only shipped orders (status=5)"
+    description: Fact table for orders - only shipped orders (status=5)
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('fct_customers')
+                field: customer_id
+
   - name: fct_products
-    description: "Fact table for products"
+    description: Fact table for products
+    columns:
+      - name: product_id
+        tests:
+          - unique
+          - not_null
+
   - name: fct_customers
-    description: "Fact table for customers"
+    description: Fact table for customers
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
