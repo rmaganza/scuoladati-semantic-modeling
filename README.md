@@ -165,6 +165,44 @@ I seed sono file CSV caricati direttamente nel database. Rappresentano i **dati 
 
 **Perché esistono**: Senza dati, non c'è modello. I seeds simulano un database sorgente.
 
+**Come si referenziano**: Nei modelli usi `ref('customers')` — il nome viene dal file CSV (`customers.csv` → `customers`).
+
+---
+
+### Seeds vs Sources: quando usi tabelle reali
+
+In questo corso usiamo **seeds** (CSV caricati da dbt). In produzione, le tabelle esistono già nel database (caricate da un ETL, un altro processo, ecc.). In quel caso si usano le **sources**.
+
+**1. Definisci le sources** in un file YAML, es. `models/staging/_sources.yml`:
+
+```yaml
+version: 2
+
+sources:
+  - name: raw_data
+    schema: public
+    tables:
+      - name: customers
+      - name: orders
+      - name: order_lines
+      - name: products
+      - name: categories
+```
+
+**2. Nei modelli usa `source()` invece di `ref()`**:
+
+```sql
+-- stg_customers.sql (con sources)
+SELECT customer_id, first_name, last_name, email, city
+FROM {{ source('raw_data', 'customers') }}
+```
+
+|                         | Seeds                | Sources                           |
+| ----------------------- | -------------------- | --------------------------------- |
+| **Definizione**         | File CSV in `seeds/` | YAML in `sources:`                |
+| **Chi crea le tabelle** | dbt (`dbt seed`)     | ETL o altro processo              |
+| **Riferimento**         | `ref('customers')`   | `source('raw_data', 'customers')` |
+
 ---
 
 ### Livello 2: Staging Models
