@@ -464,6 +464,46 @@ Il modello espone entrambi per permettere **reconciliazione**.
 
 ---
 
+## Schema.yml: cos'è e perché si crea
+
+Il file `models/schema.yml` (o `schema.yml` nelle sottocartelle di `models/`) è un file di **metadata** che accompagna i modelli e i seed. Non definisce la logica — quella resta nei file SQL e nei CSV — ma aggiunge due cose importanti.
+
+### 1. Documentazione
+
+Descrivi modelli e colonne con `description`. Queste descrizioni compaiono in `dbt docs` (generato con `dbt docs generate` e visualizzato con `dbt docs serve`), così chi usa i dati capisce subito cosa rappresenta ogni tabella e ogni campo.
+
+```yaml
+models:
+  - name: fct_customers
+    description: Fact table clienti. Solo ordini shipped.
+    columns:
+      - name: lifetime_net_revenue
+        description: Somma net_revenue dalle righe (fonte di verità)
+```
+
+### 2. Test di qualità dati
+
+Definisci i test (unique, not_null, relationships, ecc.) sulle colonne. Eseguendoli con `dbt test`, dbt controlla che i dati rispettino le regole definite.
+
+```yaml
+columns:
+  - name: customer_id
+    tests:
+      - unique
+      - not_null
+```
+
+### Perché crearlo
+
+- **Onboarding**: nuovi membri del team capiscono il modello dati senza leggere tutto il SQL.
+- **Lineage**: `dbt docs` mostra il grafo delle dipendenze tra modelli.
+- **Qualità**: i test bloccano modifiche che introducono errori (duplicati, null, relazioni rotte).
+- **Manutenzione**: le descrizioni documentano le scelte (es. perché `lifetime_net_revenue` è più affidabile di `lifetime_value`).
+
+I modelli funzionano anche senza `schema.yml`, ma senza documentazione e test il progetto diventa più fragile e difficile da capire.
+
+---
+
 ## Test dbt: Cosa sono e a cosa servono
 
 I **test dbt** sono controlli automatici che verificano la qualità e l'integrità dei dati nei tuoi modelli. A differenza dei test unitari nel codice, i test dbt eseguono query SQL sul database e falliscono se i dati non rispettano le regole definite.

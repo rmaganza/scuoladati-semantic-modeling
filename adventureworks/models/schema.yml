@@ -2,38 +2,116 @@ version: 2
 
 seeds:
   - name: customers
-  - name: orders
-  - name: order_lines
-  - name: products
-  - name: categories
+    description: Anagrafica clienti. Dati grezzi caricati da CSV.
+    columns:
+      - name: customer_id
+        description: Identificativo univoco del cliente
+      - name: city
+        description: Città per segmentazione geografica
 
-models:
-  - name: fct_orders
-    description: Fact table for orders - only shipped orders (status=5)
+  - name: orders
+    description: Ordini. Campo status numerico (1=pending, 2=processing, 5=shipped, 6=cancelled).
     columns:
       - name: order_id
+        description: Identificativo univoco dell'ordine
+      - name: status
+        description: 1=pending, 2=processing, 5=shipped, 6=cancelled
+      - name: total
+        description: Totale a livello ordine (può non riflettere gli sconti delle righe)
+
+  - name: order_lines
+    description: Righe ordine con dettaglio prodotti e sconti. Fonte di verità per il revenue.
+    columns:
+      - name: order_line_id
+        description: Identificativo univoco della riga
+      - name: line_total
+        description: Totale lordo della riga (prima degli sconti)
+      - name: discount_pct
+        description: Percentuale sconto (es. 0.10 = 10%). Revenue netto = line_total * (1 - discount_pct)
+
+  - name: products
+    description: Catalogo prodotti (biciclette e accessori)
+
+  - name: categories
+    description: Categorie e sottocategorie prodotto
+
+models:
+  - name: stg_customers
+    description: Vista staging clienti. Pass-through dal seed con selezione colonne.
+    columns:
+      - name: customer_id
+        description: PK cliente
+
+  - name: stg_orders
+    description: Vista staging ordini. Arricchita con city del cliente.
+    columns:
+      - name: order_id
+        description: PK ordine
+      - name: status
+        description: Stato ordine (5 = shipped per analisi revenue)
+
+  - name: stg_order_lines
+    description: Vista staging righe ordine. Calcola net_revenue da line_total e discount_pct. JOIN con products e categories.
+    columns:
+      - name: net_revenue
+        description: Revenue netto = line_total * (1 - discount_pct)
+      - name: discount_pct
+        description: Sconto per riga (0.10 = 10%)
+
+  - name: stg_products
+    description: Vista staging prodotti. Pass-through dal seed.
+
+  - name: stg_categories
+    description: Vista staging categorie. Rinomina name in category_name per chiarezza.
+
+  - name: fct_orders
+    description: Fact table ordini. Solo ordini shipped (status=5). Metriche a livello ordine con gross_revenue e net_revenue da order_lines.
+    columns:
+      - name: order_id
+        description: PK ordine
         tests:
           - unique
           - not_null
       - name: customer_id
+        description: FK cliente
         tests:
           - relationships:
               arguments:
                 to: ref('fct_customers')
                 field: customer_id
+      - name: order_total
+        description: Totale dall'header (per reconciliazione)
+      - name: gross_revenue
+        description: Somma line_total delle righe
+      - name: net_revenue
+        description: Somma net_revenue delle righe (con sconti)
 
   - name: fct_products
-    description: Fact table for products
+    description: Fact table prodotti. Metriche per prodotto con COUNT(DISTINCT order_id) per evitare fanout.
     columns:
       - name: product_id
+        description: PK prodotto
         tests:
           - unique
           - not_null
+      - name: orders_with_product
+        description: Numero ordini che contengono il prodotto (DISTINCT)
+      - name: gross_revenue
+        description: Revenue lorda
+      - name: net_revenue
+        description: Revenue netta (con sconti)
 
   - name: fct_customers
-    description: Fact table for customers
+    description: Fact table clienti. Solo ordini shipped. lifetime_net_revenue calcolato dalle righe (accurato).
     columns:
       - name: customer_id
+        description: PK cliente
         tests:
           - unique
           - not_null
+      - name: order_count
+        description: Numero ordini unici (solo shipped)
+      - name: lifetime_value
+        description: Somma order total dall'header (per confronto)
+      - name: lifetime_net_revenue
+        description: Somma net_revenue dalle righe (fonte di verità)
