@@ -42,7 +42,7 @@ _(Sostituisci `<url-del-repository>` con l’URL effettivo del repo. Se hai scar
 uv sync
 ```
 
-Questo crea un ambiente virtuale e installa DuckDB, dbt-duckdb, Jupyter e le altre dipendenze.
+Questo crea un ambiente virtuale e installa DuckDB, dbt-duckdb, **dbt-metricflow** (MetricFlow + dipendenze del semantic layer), Jupyter e le altre dipendenze.
 
 ### 3. Configura dbt e crea il database
 
@@ -120,7 +120,7 @@ scuoladati-semantic-modeling/
 │   ├── dbt_project.yml
 │   ├── data/                 # Database DuckDB (creato da dbt)
 │   ├── seeds/                # Dati CSV
-│   └── models/               # Modelli dbt
+│   └── models/               # Modelli dbt (staging, marts, semantic layer YAML)
 └── docs/                     # Documentazione dbt generata
 ```
 
@@ -136,6 +136,7 @@ Il notebook `notebooks/01_introduzione.ipynb` contiene:
 2. **Dimostrazione del fanout** — Cosa succede senza modellazione corretta
 3. **I modelli dbt in azione** — Build e risultati delle fact table
 4. **Confronto before/after** — Query sbagliate vs corrette
+5. **Layer semantico e MetricFlow** — Glossario sintetico, perché MetricFlow oltre al SQL sulle fact (tabella nel README), semantic model su `fct_orders`, comandi `mf query` / `mf validate-configs`; dettaglio in *Livello 4*
 
 ### Progetto dbt
 
@@ -144,6 +145,8 @@ Il progetto contiene:
 - **Seeds**: 5 file CSV con dati AdventureWorks semplificati
 - **Staging models**: 5 viste per pulizia e normalizzazione
 - **Mart models**: 3 fact table per analisi
+- **Semantic layer** (`models/marts/_semantic_layer.yml`): semantic model `orders_semantic` e metriche (`total_net_revenue`, …) per MetricFlow
+- **Time spine** (`time_spine_daily` + `_time_spine.yml`): tabella giornaliera richiesta dal semantic layer di dbt
 
 ---
 
@@ -452,15 +455,83 @@ Il modello espone entrambi per permettere **reconciliazione**.
 
 ---
 
+### Livello 4: Layer semantico dbt e MetricFlow
+
+Le fact table incapsulano la logica SQL. Il **semantic layer** di dbt la descrive in modo dichiarativo: per ogni *semantic model* definisci grain, **entità** (chiavi e relazioni), **dimensioni** (incluso il tempo) e **misure** (aggregazioni su colonne o espressioni). Le **metriche** nel YAML referenziano quelle misure e sono ciò che gli strumenti (BI, API, MetricFlow) espongono agli utenti.
+
+**MetricFlow** (`mf`, incluso in `dbt-metricflow`) legge il manifest dbt, valida la semantica rispetto al warehouse e **compila** query che rispettano il grafo (join path, granularità temporale). È il modo standard di provare e documentare le metriche prima di collegarle a un client.
+
+#### Glossario: cosa significano i pezzi dello YAML
+
+Questi termini compaiono in `_semantic_layer.yml` e nella documentazione dbt / MetricFlow. Qui sono legati al nostro esempio `orders_semantic` su `fct_orders`.
+
+| Termine | Ruolo | Esempio nel repo |
+| ------- | ----- | ---------------- |
+| **Semantic model** | Collega un **modello dbt** (`ref(...)`) a entità, dimensioni e misure in un unico “blocco” semantico. | `orders_semantic` → `ref('fct_orders')` |
+| **Grain** | Cosa rappresenta **una riga** della tabella sottostante (la granularità dei dati fisici). Non è una keyword YAML: si desume dal modello e dalle entità. | Una riga = **un ordine** (solo shipped, per come è costruita `fct_orders`) |
+| **Entity** | Chiave di business e ruolo nel **grafo** semantico. `primary` = identifica il grain del modello; `foreign` = chiave verso altri semantic model (per join tra modelli, quando li aggiungi). | `order` (primary, `order_id`), `customer` (foreign, `customer_id`) |
+| **Dimension** | Attributo su cui **filtrare o raggruppare** (slice). Può essere tempo (`type: time` + granularità) o categorico. | `order_date` (giorno), `city`, `customer_name` |
+| **Measure** | **Aggregazione** definita sul semantic model: funzione (`sum`, `count_distinct`, …) + espressione SQL sulle colonne del `ref`. È il mattoncino numerico interno. | `net_revenue` = `sum` di `net_revenue`; `orders_count` = `count_distinct` di `order_id` |
+| **Metric** | Nome **esposto** agli utenti e agli strumenti (`mf query`, BI, API). Tipo `simple` → una **measure**; altri tipi combinano metriche già definite (es. `ratio` = numeratore ÷ denominatore). | `total_net_revenue` (`simple` → `net_revenue`); `avg_net_revenue_per_order` (`ratio` → `total_net_revenue` / `order_count`) |
+| **Time spine** | Tabella calendario **continua** a una granularità fissa (qui: giorno). Il semantic layer la usa per allineare le metriche nel tempo. | `time_spine_daily` + `_time_spine.yml` |
+
+**Nomi qualificati in `mf query`**: in `--group-by` MetricFlow usa spesso `nome_entità__nome_dimensione` (due underscore), es. `order__city` per la dimensione `city` nel contesto dell’entità `order`. Se sbagli il nome, l’errore della CLI elenca i candidati validi.
+
+**Nota — conteggio ordini (`orders_count`)**: a volte si vede `agg: sum` con `expr: 1` (“somma un 1 per riga”). Con grain **una riga = un ordine** dà lo stesso totale di un conteggio righe, ed è **additivo** come le altre misure `sum`. Qui usiamo invece **`agg: count_distinct` su `order_id`**: significato più chiaro (“ordini unici”), e resta sensato anche se la tabella avesse righe duplicate per errore. `agg: count` su `order_id` conterebbe le righe con id non nullo; con duplicati gonfierebbe, quindi per “numero di ordini” `count_distinct` è la scelta più sicura.
+
+#### Perché MetricFlow (e il semantic layer) oltre alle query sulle fact?
+
+Le fact costruite da dbt **restano indispensabili**: sono la **fonte fisica** nel warehouse, con grain e regole di business testabili (`dbt test`), e vanno benissimo per SQL ad hoc, notebook, pipeline downstream.
+
+**Cosa aggiunge MetricFlow** non è “numeri diversi”, ma un **livello di consumo** diverso:
+
+| Aspetto | Query SQL su `fct_*` | MetricFlow (`mf query`, stesso manifest del Semantic Layer) |
+| ------- | -------------------- | ------------------------------------------------------------- |
+| **Definizione di “metrica”** | Ogni analista riscrive `SUM(net_revenue)`, `GROUP BY`, filtri tempo; facile divergenza tra report. | Nome stabile (`total_net_revenue`) e definizione **centralizzata** nello YAML: stesso significato per tutti i client. |
+| **Metriche composte** | Per un rapporto tipo AOV devi ricordare formula e denominatori coerenti in ogni query. | Es. metrica `ratio` (`avg_net_revenue_per_order`): numeratore/denominatore **già collegati** nel manifest. |
+| **Tempo e granularità** | Devi allineare date, spine e `GROUP BY` a mano. | Il layer + time spine supportano slice temporali coerenti con il modello semantico (meno errori di “periodo sbagliato”). |
+| **Validazione** | La correttezza è solo disciplina umana e review SQL. | `dbt parse` + `mf validate-configs` controllano definizioni e coerenza con il warehouse **prima** delle query. |
+| **Integrazione** | Ottimo per chi scrive SQL. | Stesso catalogo metriche verso **BI, Semantic Layer in cloud, API, agenti** senza duplicare la logica in ogni tool. |
+
+In **questo repository** il dataset è piccolo e c’è un solo semantic model: su `fct_orders` una `SELECT SUM(net_revenue)` è semplice e corretta. Il valore di MetricFlow qui è soprattutto **didattico** e **preparatorio**: in contesti reali, con più team e più modelli collegati, il costo di “ognuno la sua SQL” diventa alto e il layer semantico ripaga.
+
+In questo repository:
+
+| File | Ruolo |
+| ---- | ----- |
+| `adventureworks/models/marts/_semantic_layer.yml` | Semantic model `orders_semantic` su `ref('fct_orders')` con misure `gross_revenue`, `net_revenue`, `orders_count` e metriche `simple` (`total_net_revenue`, …) più esempio `ratio`: `avg_net_revenue_per_order` |
+| `adventureworks/models/marts/time_spine_daily.sql` | Una riga per ogni giorno (DuckDB `generate_series`) |
+| `adventureworks/models/marts/_time_spine.yml` | Dichiara il time spine a granularità **day** (`time_spine.standard_granularity_column`) |
+
+**Comandi** (dalla cartella `adventureworks/`; con profilo in root del repo usa `DBT_PROFILES_DIR=..`):
+
+```bash
+uv run dbt parse                  # valida modelli + semantic manifest
+uv run mf validate-configs        # MetricFlow: semantica + controlli sul warehouse
+uv run mf query --metrics total_net_revenue --quiet
+uv run mf query --metrics total_net_revenue --group-by order__city
+uv run mf query --metrics total_net_revenue --group-by order__order_date__day
+uv run mf query --metrics avg_net_revenue_per_order --quiet   # metrica type: ratio
+```
+
+Per `group-by`, MetricFlow suggerisce nomi qualificati (es. `order__city`, `order__order_date__day`) quando serve disambiguare rispetto all’entità.
+
+**Nota versioni**: `dbt-metricflow` fissa una combinazione supportata di `dbt-core` e librerie semantiche (in ambiente corso tipicamente la serie 1.10.x). Per altre versioni consulta la [documentazione dbt sul Semantic Layer](https://docs.getdbt.com/docs/build/about-metricflow) e la matrice di compatibilità.
+
+---
+
 ## Prima vs Dopo: Riepilogo
 
-| Aspetto          | Prima (SQL Diretto)          | Dopo (Modello Semantico)      |
-| ---------------- | ---------------------------- | ----------------------------- |
-| **Query**        | Complessa, ripetuta          | `SELECT * FROM fct_xxx`       |
-| **Logica**       | Duplicata in ogni query      | Centralizzata nel modello     |
-| **Errori**       | Fanout, DISTINCT dimenticati | Corretto by design            |
-| **Manutenzione** | Difficile                    | Cambi in un punto             |
-| **Testing**      | Difficile                    | Test sul modello (vedi sotto) |
+La terza colonna è lo strato **opzionale ma consigliato** quando vuoi consumare **metriche nominate** (BI, API, Semantic Layer) oltre alle tabelle fisiche.
+
+| Aspetto          | Prima (SQL diretto)          | Dopo (modelli dbt / fact)      | Dopo (+ MetricFlow / semantic layer)        |
+| ---------------- | ---------------------------- | ------------------------------ | ------------------------------------------- |
+| **Query**        | Complessa, ripetuta          | `SELECT * FROM fct_xxx`        | `mf query --metrics <nome>` (SQL generata)  |
+| **Logica**       | Duplicata in ogni query      | Centralizzata nei `.sql` mart  | Metriche e misure centralizzate nello YAML  |
+| **Errori**       | Fanout, DISTINCT dimenticati | Corretto by design sul grain   | Validazione manifest (`parse`, `mf validate-configs`) |
+| **Manutenzione** | Difficile                    | Cambi nel modello dbt          | Nomi metrica stabili per più tool / report  |
+| **Metriche composte** | Ogni report riscrivie formule | Spesso ancora SQL a mano   | Es. `type: ratio` senza duplicare divisioni |
+| **Testing**      | Difficile                    | Test dbt sul modello (vedi sotto) | Più controlli semantici oltre ai test SQL |
 
 ---
 
@@ -562,6 +633,12 @@ Eseguendo `dbt test`, dbt lancia le query corrispondenti. Se un test fallisce, v
 9. **Filtro per data**: Aggiungi un parametro per filtrare gli ordini per anno (es. solo 2024). Usa le [variables dbt](https://docs.getdbt.com/docs/build/jinja-macros#variables).
 10. **Test di integrità**: Aggiungi un test dbt che verifica che `gross_revenue` in `fct_orders` sia uguale a `order_total` (a meno di arrotondamenti).
 
+### Esercizi semantic layer / MetricFlow
+
+11. **Query generata**: Esegui `mf query --metrics total_net_revenue --explain` e confronta la SQL mostrata con una `SELECT` manuale su `fct_orders`.
+12. **Slice temporale**: Stessa metrica con `--start-time` e `--end-time` in formato ISO8601 su un intervallo che include i tuoi ordini.
+13. **Nuova metrica**: Aggiungi in YAML una metrica `simple` basata su `gross_revenue`, esegui `dbt parse` e `mf validate-configs`.
+
 ## Guida Rapida
 
 ### Eseguire il notebook
@@ -584,6 +661,17 @@ uv run jupyter lab notebooks/01_introduzione.ipynb
 | `dbt docs serve`       | Avvia server docs locale    |
 
 **Ricorda**: Esegui i comandi dbt dalla cartella `adventureworks/`.
+
+### Comandi MetricFlow (semantic layer)
+
+| Comando | Descrizione |
+| ------- | ----------- |
+| `mf validate-configs` | Valida semantic manifest e coerenza con il warehouse |
+| `mf query --metrics <nome>` | Esegue una query su una o più metriche (separate da virgola) |
+| `mf query ... --group-by order__city` | Raggruppa per dimensione (nomi qualificati come suggeriti dall’errore CLI) |
+| `mf query ... --explain` | Mostra la SQL generata |
+
+Usa `uv run mf ...` se MetricFlow non è nel PATH (consigliato in questo progetto).
 
 ## Documentazione dbt
 
@@ -645,5 +733,6 @@ customers ────── orders ────── order_lines ────�
 ## Risorse
 
 - [dbt Docs](https://docs.getdbt.com/)
+- [dbt Semantic Layer / MetricFlow](https://docs.getdbt.com/docs/build/about-metricflow)
 - [dbt DuckDB Adapter](https://github.com/duckdb/dbt-duckdb)
 - [AdventureWorks Schema](https://learn.microsoft.com/en-us/sql/samples/adventureworks-install-configure)

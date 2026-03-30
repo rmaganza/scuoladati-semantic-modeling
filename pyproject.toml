@@ -10,6 +10,7 @@ dependencies = [
     "jupyter",
     "matplotlib",
     "pandas",
+    "dbt-metricflow>=0.10.1,<0.11",
 ]
 
 [project.optional-dependencies]

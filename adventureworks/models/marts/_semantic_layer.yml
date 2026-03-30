@@ -1,0 +1,76 @@
+# MetricFlow / dbt Semantic Layer
+# Dopo modifiche: dbt parse (o dbt run), poi mf validate-configs / mf query
+#
+# Nota: le misure richiedono una dimensione temporale di default (qui order_date).
+# Metriche su fct_customers / fct_products si possono aggiungere con un time spine
+# dedicato o incrociando entity customer da questo modello.
+
+semantic_models:
+  - name: orders_semantic
+    description: |
+      Fact ordini (una riga per ordine shipped). Entity customer per join nel grafo semantico.
+    model: ref('fct_orders')
+    defaults:
+      agg_time_dimension: order_date
+    entities:
+      - name: order
+        type: primary
+        expr: order_id
+      - name: customer
+        type: foreign
+        expr: customer_id
+    dimensions:
+      - name: order_date
+        type: time
+        expr: cast(order_date as date)
+        type_params:
+          time_granularity: day
+      - name: city
+        type: categorical
+      - name: customer_name
+        type: categorical
+    measures:
+      - name: gross_revenue
+        description: Somma revenue lorda dalle righe ordine
+        agg: sum
+        expr: gross_revenue
+      - name: net_revenue
+        description: Somma revenue netta (dopo sconti)
+        agg: sum
+        expr: net_revenue
+      - name: orders_count
+        description: Conteggio ordini distinti (COUNT DISTINCT order_id)
+        agg: count_distinct
+        expr: order_id
+
+metrics:
+  - name: total_net_revenue
+    label: Revenue netta totale
+    description: Somma della revenue netta su tutti gli ordini (fact ordini)
+    type: simple
+    type_params:
+      measure: net_revenue
+
+  - name: total_gross_revenue
+    label: Revenue lorda totale
+    description: Somma della revenue lorda su tutti gli ordini
+    type: simple
+    type_params:
+      measure: gross_revenue
+
+  - name: order_count
+    label: Numero ordini
+    description: Conteggio ordini nella fact ordini
+    type: simple
+    type_params:
+      measure: orders_count
+
+  - name: avg_net_revenue_per_order
+    label: Revenue netta media per ordine
+    description: |
+      Rapporto tra revenue netta totale e numero di ordini (AOV netto).
+      type: ratio = numeratore / denominatore, entrambi riferiti ad altre metriche.
+    type: ratio
+    type_params:
+      numerator: total_net_revenue
+      denominator: order_count

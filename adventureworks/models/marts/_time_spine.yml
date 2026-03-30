@@ -1,0 +1,9 @@
+models:
+  - name: time_spine_daily
+    description: Una riga per giorno — base per aggregazioni temporali MetricFlow
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        description: Giorno calendario (granularità day)
+        granularity: day
