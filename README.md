@@ -216,7 +216,7 @@ I modelli staging sono il **primo livello di trasformazione**. Sono viste (`view
 - Normalizzano i tipi di dati
 - Arricchiscono con JOIN semplici
 
-**Regola fondamentale**: Uno staging model legge da **un solo seed** (o da un altro staging). Non fa aggregazioni.
+**Regola fondamentale**: nello staging **non si aggrega** (niente `GROUP BY` che cambi il grain): una riga della **tabella principale** del modello corrisponde a una riga in uscita. Quella tabella è di solito **un** seed (o una `source`); **JOIN a dimensioni** (lookup) per aggiungere colonne riga per riga sono ammessi — è il caso di `stg_order_lines`, che parte da `order_lines` e arricchisce con `products` e `categories`. Gli altri `stg_*.sql` del corso leggono un solo seed perché non serve altro join a questo livello.
 
 #### `stg_customers.sql`
 
