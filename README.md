@@ -82,17 +82,17 @@ Dalla cartella `adventureworks/`:
 
 ```bash
 # Con profilo globale (Opzione A)
-dbt seed
-dbt run
-dbt test
+uv run dbt seed
+uv run dbt run
+uv run dbt test
 ```
 
 Se usi l’Opzione B:
 
 ```bash
-DBT_PROFILES_DIR=.. dbt seed
-DBT_PROFILES_DIR=.. dbt run
-DBT_PROFILES_DIR=.. dbt test
+DBT_PROFILES_DIR=.. uv run dbt seed
+DBT_PROFILES_DIR=.. uv run dbt run
+DBT_PROFILES_DIR=.. uv run dbt test
 ```
 
 ### 5. Verifica che tutto funzioni
