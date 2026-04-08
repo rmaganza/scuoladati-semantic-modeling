@@ -11,6 +11,9 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 
+[options]
+prerelease-mode = "allow"
+
 [[package]]
 name = "adventureworks-dbt-course"
 version = "1.0.0"
@@ -33,7 +36,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "dbt-duckdb" },
-    { name = "dbt-metricflow", specifier = ">=0.10.1,<0.11" },
+    { name = "dbt-metricflow", specifier = ">=0.11.0,<0.12" },
     { name = "duckdb" },
     { name = "jupyter" },
     { name = "matplotlib" },
@@ -359,14 +362,14 @@ wheels = [
 
 [[package]]
 name = "click"
-version = "8.3.1"
+version = "8.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3d/fa/656b739db8587d7b5dfa22e22ed02566950fbfbcdc20311993483657a5c0/click-8.3.1.tar.gz", hash = "sha256:12ff4785d337a1bb490bb7e9c2b1ee5da3112e94a8622f26a6c77f5d2fc6842a", size = 295065, upload-time = "2025-11-15T20:45:42.706Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/60/6c/8ca2efa64cf75a977a0d7fac081354553ebe483345c734fb6b6515d96bbc/click-8.2.1.tar.gz", hash = "sha256:27c491cc05d968d271d5a1db13e3b5a184636d9d930f148c50b038f0d0646202", size = 286342, upload-time = "2025-05-20T23:19:49.832Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/98/78/01c019cdb5d6498122777c1a43056ebb3ebfeef2076d9d026bfe15583b2b/click-8.3.1-py3-none-any.whl", hash = "sha256:981153a64e25f12d547d3426c367a4857371575ee7ad18df2a6183ab0545b2a6", size = 108274, upload-time = "2025-11-15T20:45:41.139Z" },
+    { url = "https://files.pythonhosted.org/packages/85/32/10bb5764d90a8eee674e9dc6f4db6a0ab47c8c4d0d83c27f7c39ac415a4d/click-8.2.1-py3-none-any.whl", hash = "sha256:61a3265b914e850b85317d0b3109c7f8cd35a670f963866005d6ef1d5175a12b", size = 102215, upload-time = "2025-05-20T23:19:47.796Z" },
 ]
 
 [[package]]
@@ -659,7 +662,7 @@ wheels = [
 
 [[package]]
 name = "dbt-metricflow"
-version = "0.10.1"
+version = "0.11.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -670,9 +673,9 @@ dependencies = [
     { name = "metricflow" },
     { name = "update-checker" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c8/49/633cafd4df763f9acb34a1ab659763436aca8457f30e63b9b9fd85af74f2/dbt_metricflow-0.10.1.tar.gz", hash = "sha256:7c1843d1daf389915b0f1feef0a735d2f81617a0b4cca0a4419e187948557765", size = 29632, upload-time = "2025-09-18T22:48:20.679Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f0/a2/c1187af7a2c804c84da9ee5f54becdb0da4ab3386e656f7d78ac03848645/dbt_metricflow-0.11.0.tar.gz", hash = "sha256:31e52da53c305b3b68f7bd2ae3060aab9bf22a1c8a310d9dee21da72e6e5b80e", size = 32043, upload-time = "2025-10-14T16:16:17.878Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a4/41/38c194f6c8faf601285ce9d7155f7268fef213de88b4bb8f0400d0bb02be/dbt_metricflow-0.10.1-py3-none-any.whl", hash = "sha256:9cdd364fe29cc6b7419a0a967952950cdf177f4f1ff2248db898e25e869955c5", size = 39309, upload-time = "2025-09-18T22:48:19.423Z" },
+    { url = "https://files.pythonhosted.org/packages/38/9d/88e6599360338b01db4adf6887412055a63ce91b9e9539e04dd34052962b/dbt_metricflow-0.11.0-py3-none-any.whl", hash = "sha256:2bcc6f43afecc1cdc2e2a5738370bd091f92616ff9ab2f8825bafd2aabb26aa2", size = 41728, upload-time = "2025-10-14T16:16:16.713Z" },
 ]
 
 [[package]]
@@ -689,7 +692,7 @@ wheels = [
 
 [[package]]
 name = "dbt-semantic-interfaces"
-version = "0.9.0"
+version = "0.9.4.dev0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -702,9 +705,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b0/91/c702d8fb143541fda10f5eb7a7a89f34bda38ee043ecb3e3653363d0c5a0/dbt_semantic_interfaces-0.9.0.tar.gz", hash = "sha256:5c921257dce8bb51c9ffb5479f2bdd959e16ebfb98ee833de6daa70788c47271", size = 93865, upload-time = "2025-07-09T20:06:30.454Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/28/32c1f9ebf3841e8e2809463f2ccf6e407f9a5766a17bb59cd320a1ec1521/dbt_semantic_interfaces-0.9.4.dev0.tar.gz", hash = "sha256:0891fa94ced32133481435ec8d31a41b0c261f707fc51514a0861b069898515d", size = 105591, upload-time = "2025-10-08T19:42:07.319Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b3/82/41708b2b69d5fead88dea5ca0d863d6291da83ca6f1bd19246842d397e2b/dbt_semantic_interfaces-0.9.0-py3-none-any.whl", hash = "sha256:1b54c06ba89190a47a7f0563360930a0cce869e55b484ca09d261ade0e319155", size = 147008, upload-time = "2025-07-09T20:06:32.466Z" },
+    { url = "https://files.pythonhosted.org/packages/39/22/326152c9061981b76307553c48cce63ec2584c6bf742bd39aa55914009ab/dbt_semantic_interfaces-0.9.4.dev0-py3-none-any.whl", hash = "sha256:8710f2dc953087d8e37528442fc5f3e766ba5310fd520c0d61eedd33076aad38", size = 162307, upload-time = "2025-10-08T19:42:02.587Z" },
 ]
 
 [[package]]
@@ -1684,7 +1687,7 @@ wheels = [
 
 [[package]]
 name = "metricflow"
-version = "0.208.1"
+version = "0.209.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dbt-semantic-interfaces" },
@@ -1697,9 +1700,9 @@ dependencies = [
     { name = "tabulate" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2e/11/dcc51bad76e66cd88e42b049266c8350f41836ad4c44d26d90ff60427f6e/metricflow-0.208.1.tar.gz", hash = "sha256:78bb8fd698c6b71e1cbb7a5639c7191ccf30747564ef70bcac9613701b5079ad", size = 723043, upload-time = "2025-09-18T22:21:46.852Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4b/d3/cf47af37c2109738fe69abb803b5301726b4e923ecd1758834e28147a4e9/metricflow-0.209.0.tar.gz", hash = "sha256:58187952eb2e96f0c33b4ceea2701572555fabf435eea44ca24fcba7fb4c53f9", size = 709423, upload-time = "2025-10-14T16:07:41.908Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4e/90/591271dc732296348f1c633dce46d735872c6f2970d8e60f75831051339f/metricflow-0.208.1-py3-none-any.whl", hash = "sha256:234f78ba25fd9266665a824b1f55be959839fe0eeb0ab35de87ae9d2b8fd94ed", size = 999215, upload-time = "2025-09-18T22:21:45.127Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/4c/58eb89edb3f4535b98de0366d15efc74069feae7ec32271a3939ab9348af/metricflow-0.209.0-py3-none-any.whl", hash = "sha256:1bebde4638b054157c06fc10700e85ff7a7bf775e3cde24922c7b437a445204b", size = 979253, upload-time = "2025-10-14T16:07:39.929Z" },
 ]
 
 [[package]]

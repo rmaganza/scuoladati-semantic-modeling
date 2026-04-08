@@ -10,7 +10,7 @@ dependencies = [
     "jupyter",
     "matplotlib",
     "pandas",
-    "dbt-metricflow>=0.10.1,<0.11",
+    "dbt-metricflow>=0.11.0,<0.12",
 ]
 
 [project.optional-dependencies]
@@ -23,3 +23,8 @@ dev = []
 
 [tool.jupyter]
  kernelspec = "python3"
+
+# dbt-metricflow 0.11 → metricflow 0.209 richiede dbt-semantic-interfaces pre-release su PyPI;
+# senza questo, `uv lock` non risolve.
+[tool.uv]
+prerelease = "allow"

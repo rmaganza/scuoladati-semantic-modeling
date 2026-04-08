@@ -516,7 +516,7 @@ uv run mf query --metrics avg_net_revenue_per_order --quiet   # metrica type: ra
 
 Per `group-by`, MetricFlow suggerisce nomi qualificati (es. `order__city`, `order__order_date__day`) quando serve disambiguare rispetto all’entità.
 
-**Nota versioni**: `dbt-metricflow` fissa una combinazione supportata di `dbt-core` e librerie semantiche (in ambiente corso tipicamente la serie 1.10.x). Per altre versioni consulta la [documentazione dbt sul Semantic Layer](https://docs.getdbt.com/docs/build/about-metricflow) e la matrice di compatibilità.
+**Nota versioni**: il progetto usa **dbt-metricflow 0.11.x** (CLI `mf` 0.11.0) con **dbt-core** nella serie 1.10.x tramite `dbt-duckdb`. La risoluzione `uv` abilita i **pre-release** (`[tool.uv] prerelease = "allow"` in `pyproject.toml`) perché quella release di MetricFlow dipende da `dbt-semantic-interfaces` come versione pre-release su PyPI. Per aggiornamenti futuri consulta la [documentazione dbt sul Semantic Layer](https://docs.getdbt.com/docs/build/about-metricflow) e la matrice di compatibilità.
 
 ---
 
@@ -647,7 +647,7 @@ Eseguendo `dbt test`, dbt lancia le query corrispondenti. Se un test fallisce, v
 uv run jupyter lab notebooks/01_introduzione.ipynb
 ```
 
-**Nota**: Esegui il notebook dalla root del progetto. Il notebook si connette a `adventureworks/data/adventureworks.duckdb`. Esegui prima `dbt seed` e `dbt run` dalla cartella `adventureworks/`.
+**Nota**: Esegui il notebook dalla root del progetto (o da `notebooks/`; il path del DB viene risolto in entrambi i casi). La connessione DuckDB è in **sola lettura** per le query del notebook. La cella MetricFlow **chiude e riapre** quella connessione attorno a `mf query`, perché DuckDB non consente al processo MetricFlow/dbt di aprire il file se il kernel Jupyter lo tiene ancora aperto (*Conflicting lock*). Usa il kernel Python del progetto (`.venv`) così si trova l’eseguibile `mf`. Esegui prima `dbt seed` e `dbt run` dalla cartella `adventureworks/`.
 
 ### Comandi dbt
 
