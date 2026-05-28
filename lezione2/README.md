@@ -159,16 +159,39 @@ scuoladati-semantic-modeling/
 └── lezione2/
     ├── README.md                 # Questo file
     ├── dagster_pipeline.py       # Pipeline Dagster (eseguibile)
-    └── 02_agente_semantico.ipynb # Notebook della lezione
+    ├── 02_agente_semantico.ipynb # Notebook della lezione
+    ├── Dockerfile                # Immagine Docker del code location
+    ├── docker-compose.yml        # Stack completo: PostgreSQL + 3 servizi Dagster
+    ├── dagster.yaml              # Storage PostgreSQL + run launcher
+    └── workspace.yaml            # Punta il daemon al code location via gRPC
 ```
 
 ### `dagster_pipeline.py`
 
 Contiene:
+
 - `adventureworks_assets` — tutti i modelli dbt come asset Dagster
 - `dbt_refresh_job` — job che materializza i tre fact table
 - `daily_schedule` — esecuzione giornaliera alle 06:00
 - `post_run_agent_sensor` — sensor che triggera l'agente dopo ogni run completato
+
+### `Dockerfile` + `docker-compose.yml`
+
+Mostrano come il pipeline viene deployato in produzione.
+La stessa immagine Docker viene usata da tre servizi con comandi diversi:
+
+| Servizio            | Comando                     | Ruolo                                        |
+| ------------------- | --------------------------- | -------------------------------------------- |
+| `code-location`     | `dagster code-server start` | Serve il codice Python via gRPC              |
+| `dagster-daemon`    | `dagster-daemon run`        | Esegue schedule e sensor (polling ogni ~30s) |
+| `dagster-webserver` | `dagster-webserver`         | UI su :3000 (opzionale)                      |
+
+Per avviare lo stack completo:
+
+```bash
+# dalla root del repo
+ANTHROPIC_API_KEY=sk-ant-... docker compose -f lezione2/docker-compose.yml up --build
+```
 
 ---
 
@@ -177,7 +200,7 @@ Contiene:
 ### Agent (Pydantic AI)
 
 Un agente è un LLM con tool e un output atteso. Gestisce autonomamente il ciclo
-*ragiona → chiama tool → osserva → ragiona di nuovo* finché non produce l'output richiesto.
+_ragiona → chiama tool → osserva → ragiona di nuovo_ finché non produce l'output richiesto.
 
 ```python
 monitoring_agent = Agent(
@@ -284,14 +307,17 @@ dopo ogni dbt run e triggera l'agente se trova un run più recente dell'ultimo p
 ## I Tre Pattern dell'Agente
 
 ### Pattern 1 — Tool Calling su Dati Strutturati
+
 L'agente chiama funzioni Python per interrogare il database.
 Il modello scrive la query SQL, il tool la esegue e restituisce il risultato.
 
 ### Pattern 2 — Context Injection
+
 Il corpus dbt viene iniettato interamente nel system prompt.
 Il modello legge formule e definizioni direttamente nel contesto, senza tool di ricerca.
 
 ### Pattern 3 — Agent Loop
+
 L'agente gira in loop su una lista di metriche, producendo un `MonitoringAlert` per ciascuna.
 Ogni iterazione è indipendente → scalabile in parallelo con `asyncio.gather()`.
 
@@ -335,11 +361,11 @@ Poi apri http://localhost:3000 per il lineage graph, i log dei run e lo schedule
 
 Con i dati AdventureWorks inclusi nel progetto:
 
-| Metrica | Valore atteso | Soglia warning | Esito |
-|---|---|---|---|
-| `total_net_revenue` | ~€9.740 | €12.000 | ⚠️ warning |
-| `order_count` | 6 ordini | 5 ordini | ✅ ok |
-| `avg_net_revenue_per_order` | ~€1.623 | €1.500 | ✅ ok |
+| Metrica                     | Valore atteso | Soglia warning | Esito      |
+| --------------------------- | ------------- | -------------- | ---------- |
+| `total_net_revenue`         | ~€9.740       | €12.000        | ⚠️ warning |
+| `order_count`               | 6 ordini      | 5 ordini       | ✅ ok      |
+| `avg_net_revenue_per_order` | ~€1.623       | €1.500         | ✅ ok      |
 
 L'ordine 9 è in stato 3 (in lavorazione) invece di 5 (spedito): i suoi €4.200 di ricavo
 non vengono conteggiati, portando `total_net_revenue` sotto la soglia di warning.
@@ -348,14 +374,14 @@ non vengono conteggiati, portando `total_net_revenue` sotto la soglia di warning
 
 ## Notebook vs Produzione
 
-| Aspetto | Notebook | Produzione |
-|---|---|---|
-| **Trigger** | Chiamata diretta | Dagster sensor |
-| **Database** | DuckDB locale | Snowflake / BigQuery |
-| **Corpus** | File su disco | dbt Cloud API / metadata store |
-| **Alert** | `print()` | Slack / PagerDuty |
-| **Parallelismo** | Loop sequenziale | `asyncio.gather()` per N agenti |
-| **Stato** | In memoria | Tabella `monitoring_alerts` nel DB |
+| Aspetto          | Notebook         | Produzione                         |
+| ---------------- | ---------------- | ---------------------------------- |
+| **Trigger**      | Chiamata diretta | Dagster sensor                     |
+| **Database**     | DuckDB locale    | Snowflake / BigQuery               |
+| **Corpus**       | File su disco    | dbt Cloud API / metadata store     |
+| **Alert**        | `print()`        | Slack / PagerDuty                  |
+| **Parallelismo** | Loop sequenziale | `asyncio.gather()` per N agenti    |
+| **Stato**        | In memoria       | Tabella `monitoring_alerts` nel DB |
 
 ---
 

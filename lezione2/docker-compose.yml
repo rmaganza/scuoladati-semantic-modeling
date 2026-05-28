@@ -1,0 +1,92 @@
+# docker-compose.yml — Stack Dagster completo per produzione
+#
+# Tutti e tre i servizi Dagster usano la stessa immagine (build una volta sola).
+# Il CMD di avvio cambia per servizio:
+#   code-location  → dagster code-server start  (serve il codice via gRPC)
+#   dagster-daemon → dagster-daemon run          (esegue schedule e sensor)
+#   dagster-webserver → dagster-webserver        (UI su :3000)
+#
+# Per avviare:
+#   docker compose -f lezione2/docker-compose.yml up --build
+#
+# Per vedere i log del daemon (schedule + sensor):
+#   docker compose -f lezione2/docker-compose.yml logs -f dagster-daemon
+
+services:
+  # ── PostgreSQL: storage condiviso tra tutti i servizi ─────────────────────
+  # Persiste: run history, event log, cursor dei sensor, schedule ticks.
+  postgresql:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: dagster
+      POSTGRES_PASSWORD: dagster
+      POSTGRES_DB: dagster
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U dagster]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Code Location: serve il pipeline Python via gRPC ──────────────────────
+  # Il daemon e il webserver si connettono qui per leggere la definizione
+  # di asset, job, schedule e sensor. Quando si fa il deploy di una nuova
+  # versione del codice, si riavvia solo questo container.
+  code-location:
+    build:
+      context: .. # root del repo (adventureworks/ è qui)
+      dockerfile: lezione2/Dockerfile
+    env_file: ../.env # path relativo a questo file, non alla cwd
+    environment:
+      DAGSTER_HOME: /app
+    # CMD default del Dockerfile: dagster code-server start --port 4000
+    depends_on:
+      postgresql:
+        condition: service_healthy
+
+  # ── Dagster Daemon: esegue schedule e sensor ──────────────────────────────
+  # Processo critico: senza di lui, schedule e sensor non partono mai.
+  # Fa polling ogni ~30s per verificare se uno schedule è in scadenza
+  # o se un sensor ha prodotto un RunRequest.
+  dagster-daemon:
+    build:
+      context: ..
+      dockerfile: lezione2/Dockerfile
+    command: [uv, run, dagster-daemon, run]
+    env_file: ../.env
+    environment:
+      DAGSTER_HOME: /app
+      POSTGRES_USER: dagster
+      POSTGRES_PASSWORD: dagster
+      POSTGRES_DB: dagster
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      code-location:
+        condition: service_started
+    restart: on-failure
+
+  # ── Dagster Webserver: UI su :3000 ────────────────────────────────────────
+  # Opzionale in produzione; indispensabile per il lineage graph, i log
+  # dei run e il monitoraggio manuale.
+  dagster-webserver:
+    build:
+      context: ..
+      dockerfile: lezione2/Dockerfile
+    command: [uv, run, dagster-webserver, -h, 0.0.0.0, -p, 3000]
+    ports:
+      - 3000:3000
+    environment:
+      DAGSTER_HOME: /app
+      POSTGRES_USER: dagster
+      POSTGRES_PASSWORD: dagster
+      POSTGRES_DB: dagster
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      code-location:
+        condition: service_started
+
+volumes:
+  postgres-data:

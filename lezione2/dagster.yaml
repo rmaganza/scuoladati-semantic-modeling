@@ -1,0 +1,24 @@
+# dagster.yaml — configurazione storage e run launcher per produzione
+#
+# In sviluppo (dagster dev) Dagster usa SQLite in memoria.
+# In produzione serve PostgreSQL: è condiviso tra daemon, webserver e code location
+# e persiste run history, event log e cursor dei sensor tra i riavvii.
+
+storage:
+  postgres:
+    postgres_db:
+      username:
+        env: POSTGRES_USER
+      password:
+        env: POSTGRES_PASSWORD
+      hostname: postgresql # nome del servizio PostgreSQL in docker-compose
+      db_name:
+        env: POSTGRES_DB
+      port: 5432
+
+# DefaultRunLauncher: avvia ogni run come subprocess nel container code-location.
+# Alternative per K8s: K8sRunLauncher (un Pod per ogni run).
+# Alternative per Docker standalone: DockerRunLauncher (un container per ogni run).
+run_launcher:
+  module: dagster.core.launcher
+  class: DefaultRunLauncher

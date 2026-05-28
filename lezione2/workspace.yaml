@@ -1,0 +1,13 @@
+# workspace.yaml — dice al daemon e al webserver dove trovare il code location
+#
+# In sviluppo locale (dagster dev -f lezione2/dagster_pipeline.py) questo file
+# non serve: Dagster carica il file Python direttamente.
+#
+# In produzione, il code location gira come processo separato (container Docker)
+# e il daemon/webserver si connettono via gRPC all'host:port indicato qui.
+
+load_from:
+  - grpc_server:
+      host: code-location # nome del servizio in docker-compose.yml
+      port: 4000
+      location_name: adventureworks
