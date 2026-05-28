@@ -1,5 +1,6 @@
 # Python
 
+.cursorindexingignore
 .specstory/*
 .ipynb_checkpoints/
 __pycache__/
@@ -48,3 +49,6 @@ dbt_packages/
 # OS
 .DS_Store
 Thumbs.db
+
+# Environment variables
+.env

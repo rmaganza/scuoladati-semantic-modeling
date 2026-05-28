@@ -11,11 +11,21 @@ dependencies = [
     "matplotlib",
     "pandas",
     "dbt-metricflow>=0.11.0,<0.12",
+    "pydantic-ai",
+    "anthropic",
+    "python-dotenv",
+    "sentence-transformers",
+    "numpy",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
+]
+dagster = [
+    "dagster",
+    "dagster-dbt",
+    "dagster-webserver",
 ]
 
 [dependency-groups]
